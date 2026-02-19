@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Video Analytics Dashboard
 
-## Getting Started
+A specialized visualization dashboard built with **Next.js 15** and **Highcharts (Highstock)** to analyze real-time video streaming performance metrics.
 
-First, run the development server:
+## 🚀 Overview
+
+This project provides a comprehensive overview of video streaming quality by visualizing critical network and performance data. It is designed to help developers and engineers troubleshoot stream quality issues and monitor real-time performance.
+
+## 📊 Key Analytics Tracked
+
+The dashboard features interactive Highcharts implementations for:
+
+- **Video Width Analytics**: Tracks changes in video resolution over time.
+- **Jitter Analytics**: Visualizes network jitter fluctuations.
+- **RTT/Latency Analytics**: Monitors Round Trip Time for connection responsiveness.
+- **Packet Loss Analytics**: Displays packet loss percentage to identify network congestion.
+- **Bitrate Analytics**: Tracks variations in streaming bitrate (kbps).
+- **FPS Analytics**: Monitors frame rate consistency for smooth playback.
+
+## 🛠 Tech Stack
+
+- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
+- **Charting Engine**: [Highcharts](https://www.highcharts.com/) / [Highstock](https://www.highcharts.com/products/stock/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Data Source**: Static JSON-based metrics from `Data.js` and `Data2.js`.
+
+## ⚙️ Getting Started
+
+### Installation
+
+First, install the dependencies:
+
+```bash
+npm install
+```
+
+### Development
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the dashboard.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## 📁 Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `src/app/components/ChartComponent.js`: The primary component containing all charting logic and Highcharts configurations.
+- `Data.js`: Main data source for video streaming metrics.
+- `Data2.js`: Secondary/Historical data source.
+- `src/app/page.js`: Main entry point for the dashboard view.
 
-## Learn More
+## 🧹 Optimization
 
-To learn more about Next.js, take a look at the following resources:
+Unused dependencies like `chart.js` and `react-chartjs-2` have been removed to keep the bundle size small and the project focused on the Highcharts implementation.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+*Handcrafted for precise video data visualization.*
