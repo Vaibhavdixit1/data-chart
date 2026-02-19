@@ -1,1448 +1,262 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import Highcharts from "highcharts/highstock";
-import videoStats from "../../../Data.js";
+import Highcharts from "highcharts/highstock"; // We still import highstock but will use regular Highcharts.chart
+import videoStats1 from "../../../Data.js";
+import videoStats2 from "../../../Data2.js";
 
+// Shared Dark Theme for Highcharts
+const darkTheme = {
+  chart: {
+    backgroundColor: 'transparent',
+    style: {
+      fontFamily: 'var(--font-geist-sans)'
+    }
+  },
+  navigator: {
+    enabled: false // Explicitly disable navigator
+  },
+  rangeSelector: {
+    enabled: false // Explicitly disable range selector
+  },
+  scrollbar: {
+    enabled: false // Explicitly disable scrollbar
+  },
+  title: {
+    style: {
+      color: '#ffffff',
+      fontSize: '14px',
+      fontWeight: '600'
+    }
+  },
+  xAxis: {
+    gridLineColor: '#1a1a1a',
+    labels: {
+      style: {
+        color: '#666666',
+        fontSize: '10px'
+      }
+    },
+    lineColor: '#1a1a1a',
+    minorGridLineColor: '#111111',
+    tickColor: '#1a1a1a',
+    title: {
+      style: {
+        color: '#888888'
+      }
+    }
+  },
+  yAxis: {
+    gridLineColor: '#1a1a1a',
+    labels: {
+      style: {
+        color: '#666666',
+        fontSize: '10px'
+      }
+    },
+    lineColor: '#1a1a1a',
+    minorGridLineColor: '#111111',
+    tickColor: '#1a1a1a',
+    tickWidth: 1,
+    title: {
+      style: {
+        color: '#888888',
+        fontSize: '10px'
+      }
+    }
+  },
+  legend: {
+    enabled: true,
+    itemStyle: {
+      color: '#ffffff',
+      fontWeight: '400',
+      fontSize: '10px'
+    },
+    itemHoverStyle: {
+      color: '#888888'
+    },
+    itemHiddenStyle: {
+      color: '#333333'
+    }
+  },
+  credits: {
+    enabled: false
+  }
+};
 
-// Horizontal Line Chart Component - Same as HorizontalBarChart but with lines
-export function HorizontalLineChart() {
+// Apply theme once
+Highcharts.setOptions(darkTheme);
+
+// Series Colors - Monochromatic shades
+const MONO_COLORS = ['#ffffff', '#a1a1a1', '#525252'];
+
+// Utility to process series data
+const processSeries = (data, valueKey) => {
+  const statSeries = MONO_COLORS.map((color, i) => ({
+    name: `Stream ${i + 1}`,
+    data: [],
+    color: color,
+    lineWidth: 1.5,
+    states: {
+      hover: {
+        lineWidth: 2
+      }
+    }
+  }));
+
+  data.forEach((entry) => {
+    if (entry.stats && entry.stats.length > 0) {
+      entry.stats.forEach((stat, statIndex) => {
+        if (stat && statIndex < 3) {
+          const timestamp = new Date(stat.timestamp).getTime();
+          let value;
+
+          if (typeof valueKey === 'function') {
+            value = valueKey(stat);
+          } else {
+            value = valueKey.split('.').reduce((obj, key) => obj?.[key], stat);
+          }
+
+          if (value !== undefined) {
+            statSeries[statIndex].data.push({
+              x: timestamp,
+              y: value
+            });
+          }
+        }
+      });
+    }
+  });
+
+  return statSeries;
+};
+
+// Common Chart Wrapper Component
+function BaseChart({ title, valueKey, yAxisLabel, dataset, formatter = (v) => v }) {
   const chartRef = useRef(null);
 
   useEffect(() => {
-    const createHorizontalLineChart = () => {
-      try {
-        // Process video stats data for horizontal lines
-        // Each stat becomes a separate line, width value determines line position
-        const seriesData = [];
+    if (!chartRef.current) return;
 
-        // Use all data for complete visualization
-        const limitedData = videoStats;
+    const seriesData = processSeries(dataset, valueKey);
 
-        // Create grouped series - one series per stat position
-        const statSeries = [];
-
-        // Initialize series for each stat position (S1, S2, S3)
-        for (let statIndex = 0; statIndex < 3; statIndex++) {
-          statSeries.push({
-            name: `Stat ${statIndex + 1}`,
-            data: [],
-            color: `hsl(${(statIndex * 120) % 360}, 70%, 50%)`
-          });
-        }
-
-        limitedData.forEach((entry, timestampIndex) => {
-          if (entry.stats && entry.stats.length > 0) {
-            // Process each stat within this parent timestamp
-            entry.stats.forEach((stat, statIndex) => {
-              if (stat && stat.size && statIndex < 3) {
-                // Use the actual stat timestamp for x-axis
-                const statTimestamp = new Date(stat.timestamp).getTime();
-                
-                // Add data point to the corresponding stat series
-                statSeries[statIndex].data.push({
-                  x: statTimestamp,
-                  y: stat.size.width,
-                  custom: {
-                    timestamp: entry.timestamp,
-                    statIndex: statIndex + 1,
-                    width: stat.size.width,
-                    height: stat.size.height,
-                    framerate: stat.size.framerate
-                  }
-                });
-              }
+    // Use Highcharts.chart instead of stockChart to completely avoid zoom/navigator features
+    const chart = Highcharts.chart(chartRef.current, {
+      title: { text: '' },
+      yAxis: {
+        title: { text: yAxisLabel },
+        labels: { formatter: function () { return formatter(this.value); } }
+      },
+      xAxis: {
+        type: 'datetime',
+        labels: {
+          formatter: function () {
+            return new Date(this.value).toLocaleTimeString('en-US', {
+              hour12: false,
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
             });
           }
-        });
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(10, 10, 10, 0.9)',
+        borderColor: '#1a1a1a',
+        style: { color: '#ffffff' },
+        shared: true,
+        useHTML: true,
+        headerFormat: '<div style="margin-bottom: 5px; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 3px;">{point.key}</div>',
+        pointFormat: '<div style="display: flex; justify-content: space-between; gap: 10px;">' +
+          '<span style="color:{series.color}">●</span> {series.name}: ' +
+          '<span style="font-weight: bold;">{point.y}</span>' +
+          '</div>'
+      },
+      series: seriesData
+    });
 
-        // Add all stat series to the chart
-        seriesData.push(...statSeries);
-
-
-        // Extract all unique timestamps for explicit tick positioning
-        const allTimestamps = [];
-        seriesData.forEach(series => {
-          series.data.forEach(point => {
-            if (!allTimestamps.includes(point.x)) {
-              allTimestamps.push(point.x);
-            }
-          });
-        });
-        allTimestamps.sort((a, b) => a - b);
-
-        // Create the stock chart
-        const chart = Highcharts.stockChart(chartRef.current, {
-          rangeSelector: {
-            selected: 3,
-            inputEnabled: false,
-            inputDateFormat: '%Y-%m-%d',
-            inputEditDateFormat: '%Y-%m-%d',
-            inputDateParser: null,
-            inputBoxWidth: 0,
-            inputBoxHeight: 0,
-            inputStyle: {
-              display: 'none'
-            },
-            buttons: [
-              {
-                type: 'custom',
-                count: 10,
-                text: '10',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 10) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[9];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'custom',
-                count: 20,
-                text: '20',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 20) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[19];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'custom',
-                count: 40,
-                text: '40',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 40) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[39];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'all',
-                text: 'All'
-              }
-            ]
-          },
-
-          title: {
-            text: 'Video Width Analytics'
-          },
-
-          legend: {
-            enabled: true,
-            align: 'center',
-            verticalAlign: 'bottom',
-            layout: 'horizontal',
-            itemStyle: {
-              fontSize: '12px'
-            },
-            symbolHeight: 12,
-            symbolWidth: 12,
-            symbolRadius: 2
-          },
-
-          xAxis: {
-            overscroll: '10px',
-            labels: {
-              enabled: true,
-              rotation: -45,
-              style: {
-                fontSize: '4px'
-              },
-              step: 1,
-              staggerLines: 1,
-              formatter: function() {
-                return new Date(this.value).toLocaleTimeString('en-US', {
-                  hour12: false,
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  fractionalSecondDigits: 3
-                });
-              }
-            },
-            tickInterval: null,
-            type: 'datetime',
-            minPadding: 0,
-            maxPadding: 0,
-            startOnTick: false,
-            endOnTick: false,
-            tickPositions: allTimestamps,
-            tickPositioner: function() {
-              return allTimestamps;
-            }
-          },
-
-          yAxis: {
-            min: 0,
-            title: {
-              text: 'Width (pixels)'
-            }
-          },
-
-          navigator: {
-            xAxis: {
-              labels: {
-                enabled: true,
-                rotation: -45,
-                style: {
-                  fontSize: '4px'
-                },
-                step: 1,
-                staggerLines: 1,
-                formatter: function() {
-                  return new Date(this.value).toLocaleTimeString('en-US', {
-                    hour12: false,
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    fractionalSecondDigits: 3
-                  });
-                }
-              },
-              tickInterval: null,
-              type: 'datetime',
-              minPadding: 0,
-              maxPadding: 0,
-              startOnTick: false,
-              endOnTick: false,
-              tickPositions: allTimestamps,
-              tickPositioner: function() {
-                return allTimestamps;
-              }
-            }
-          },
-
-          series: seriesData.map(series => ({
-            ...series,
-            tooltip: {
-              valueDecimals: 0
-            }
-          }))
-        });
-      } catch (error) {
-        console.error("Error creating horizontal line chart:", error);
-      }
-    };
-
-    createHorizontalLineChart();
-  }, []);
+    return () => chart.destroy();
+  }, [valueKey, title, yAxisLabel, formatter, dataset]);
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-lg">
-      <div ref={chartRef} style={{ height: "400px", width: "100%" }}></div>
+    <div className="chart-card glass rounded-xl p-6 h-full border border-white/5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-[10px] font-bold text-white/50 tracking-[0.2em] uppercase">{title}</h3>
+      </div>
+      <div ref={chartRef} style={{ height: "280px", width: "100%" }}></div>
     </div>
   );
 }
 
-// Jitter Horizontal Line Chart Component
-export function JitterHorizontalLineChart() {
-  const chartRef = useRef(null);
-
-  useEffect(() => {
-    const createJitterHorizontalLineChart = () => {
-      try {
-        const seriesData = [];
-        const limitedData = videoStats;
-
-        const statSeries = [];
-        for (let statIndex = 0; statIndex < 3; statIndex++) {
-          statSeries.push({
-            name: `Stat ${statIndex + 1}`,
-            data: [],
-            color: `hsl(${(statIndex * 120) % 360}, 70%, 50%)`
-          });
-        }
-
-        limitedData.forEach((entry, timestampIndex) => {
-          if (entry.stats && entry.stats.length > 0) {
-            entry.stats.forEach((stat, statIndex) => {
-              if (stat && statIndex < 3) {
-                // Use the actual stat timestamp for x-axis
-                const statTimestamp = new Date(stat.timestamp).getTime();
-                
-                statSeries[statIndex].data.push({
-                  x: statTimestamp,
-                  y: stat.jitter,
-                  custom: {
-                    timestamp: entry.timestamp,
-                    statIndex: statIndex + 1,
-                    jitter: stat.jitter,
-                    rtt: stat.rtt,
-                    bitrate: stat.bitrate
-                  }
-                });
-              }
-            });
-          }
-        });
-
-        seriesData.push(...statSeries);
-
-        // Extract all unique timestamps for explicit tick positioning
-        const allTimestamps = [];
-        seriesData.forEach(series => {
-          series.data.forEach(point => {
-            if (!allTimestamps.includes(point.x)) {
-              allTimestamps.push(point.x);
-            }
-          });
-        });
-        allTimestamps.sort((a, b) => a - b);
-
-        const chart = Highcharts.stockChart(chartRef.current, {
-          rangeSelector: {
-            selected: 3,
-            inputEnabled: false,
-            inputDateFormat: '%Y-%m-%d',
-            inputEditDateFormat: '%Y-%m-%d',
-            inputDateParser: null,
-            inputBoxWidth: 0,
-            inputBoxHeight: 0,
-            inputStyle: {
-              display: 'none'
-            },
-            buttons: [
-              {
-                type: 'custom',
-                count: 10,
-                text: '10',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 10) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[9];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'custom',
-                count: 20,
-                text: '20',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 20) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[19];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'custom',
-                count: 40,
-                text: '40',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 40) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[39];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'all',
-                text: 'All'
-              }
-            ]
-          },
-
-          title: {
-            text: 'Jitter Analytics'
-          },
-
-          legend: {
-            enabled: true,
-            align: 'center',
-            verticalAlign: 'bottom',
-            layout: 'horizontal',
-            itemStyle: {
-              fontSize: '12px'
-            },
-            symbolHeight: 12,
-            symbolWidth: 12,
-            symbolRadius: 2
-          },
-
-          xAxis: {
-            overscroll: '10px',
-            labels: {
-              enabled: true,
-              rotation: -45,
-              style: {
-                fontSize: '4px'
-              },
-              step: 1,
-              staggerLines: 1,
-              formatter: function() {
-                return new Date(this.value).toLocaleTimeString('en-US', {
-                  hour12: false,
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  fractionalSecondDigits: 3
-                });
-              }
-            },
-            tickInterval: null,
-            type: 'datetime',
-            minPadding: 0,
-            maxPadding: 0,
-            startOnTick: false,
-            endOnTick: false,
-            tickPositions: allTimestamps,
-            tickPositioner: function() {
-              return allTimestamps;
-            }
-          },
-
-          yAxis: {
-            min: 0,
-            title: {
-              text: 'Jitter (ms)'
-            }
-          },
-
-          navigator: {
-            xAxis: {
-              labels: {
-                enabled: true,
-                rotation: -45,
-                style: {
-                  fontSize: '4px'
-                },
-                step: 1,
-                staggerLines: 1,
-                formatter: function() {
-                  return new Date(this.value).toLocaleTimeString('en-US', {
-                    hour12: false,
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    fractionalSecondDigits: 3
-                  });
-                }
-              },
-              tickInterval: null,
-              type: 'datetime',
-              minPadding: 0,
-              maxPadding: 0,
-              startOnTick: false,
-              endOnTick: false,
-              tickPositions: allTimestamps,
-              tickPositioner: function() {
-                return allTimestamps;
-              }
-            }
-          },
-
-          series: seriesData.map(series => ({
-            ...series,
-            tooltip: {
-              valueDecimals: 2
-            }
-          }))
-        });
-      } catch (error) {
-        console.error("Error creating jitter horizontal line chart:", error);
-      }
-    };
-
-    createJitterHorizontalLineChart();
-  }, []);
-
+function GridSection({ title, dataset }) {
   return (
-    <div className="bg-white p-4 rounded-lg shadow-lg">
-      <div ref={chartRef} style={{ height: "400px", width: "100%" }}></div>
-    </div>
+    <section className="mb-24">
+      <div className="flex items-center gap-6 mb-12">
+        <h2 className="text-3xl font-black tracking-tighter uppercase whitespace-nowrap">{title}</h2>
+        <div className="h-[1px] w-full bg-gradient-to-r from-white/20 to-transparent"></div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <BaseChart
+          title="Resolution Profile"
+          valueKey="size.width"
+          yAxisLabel="Width (px)"
+          dataset={dataset}
+          formatter={(v) => `${v}px`}
+        />
+        <BaseChart
+          title="Network Jitter"
+          valueKey="jitter"
+          yAxisLabel="Jitter (ms)"
+          dataset={dataset}
+          formatter={(v) => `${v}ms`}
+        />
+        <BaseChart
+          title="Latency (RTT)"
+          valueKey="rtt"
+          yAxisLabel="RTT (ms)"
+          dataset={dataset}
+          formatter={(v) => `${v}ms`}
+        />
+        <BaseChart
+          title="Packet Loss Rate"
+          valueKey={(s) => s.totalPackets > 0 ? (s.packetsLost / s.totalPackets) * 100 : 0}
+          yAxisLabel="Loss (%)"
+          dataset={dataset}
+          formatter={(v) => `${v.toFixed(2)}%`}
+        />
+        <BaseChart
+          title="Transmission Bitrate"
+          valueKey="bitrate"
+          yAxisLabel="Bitrate (kbps)"
+          dataset={dataset}
+          formatter={(v) => `${(v / 1000).toFixed(1)}M`}
+        />
+        <BaseChart
+          title="Visual Fidelity (FPS)"
+          valueKey="size.framerate"
+          yAxisLabel="FPS"
+          dataset={dataset}
+          formatter={(v) => `${v} fps`}
+        />
+      </div>
+    </section>
   );
 }
-
-// RTT/Latency Horizontal Line Chart Component
-export function RTTHorizontalLineChart() {
-  const chartRef = useRef(null);
-
-  useEffect(() => {
-    const createRTTHorizontalLineChart = () => {
-      try {
-        const seriesData = [];
-        const limitedData = videoStats;
-
-        const statSeries = [];
-        for (let statIndex = 0; statIndex < 3; statIndex++) {
-          statSeries.push({
-            name: `Stat ${statIndex + 1}`,
-            data: [],
-            color: `hsl(${(statIndex * 120) % 360}, 70%, 50%)`
-          });
-        }
-
-        limitedData.forEach((entry, timestampIndex) => {
-          if (entry.stats && entry.stats.length > 0) {
-            entry.stats.forEach((stat, statIndex) => {
-              if (stat && statIndex < 3) {
-                // Use the actual stat timestamp for x-axis
-                const statTimestamp = new Date(stat.timestamp).getTime();
-                
-                statSeries[statIndex].data.push({
-                  x: statTimestamp,
-                  y: stat.rtt,
-                  custom: {
-                    timestamp: entry.timestamp,
-                    statIndex: statIndex + 1,
-                    rtt: stat.rtt,
-                    jitter: stat.jitter,
-                    bitrate: stat.bitrate
-                  }
-                });
-              }
-            });
-          }
-        });
-
-        seriesData.push(...statSeries);
-
-        // Extract all unique timestamps for explicit tick positioning
-        const allTimestamps = [];
-        seriesData.forEach(series => {
-          series.data.forEach(point => {
-            if (!allTimestamps.includes(point.x)) {
-              allTimestamps.push(point.x);
-            }
-          });
-        });
-        allTimestamps.sort((a, b) => a - b);
-
-        const chart = Highcharts.stockChart(chartRef.current, {
-          rangeSelector: {
-            selected: 3,
-            inputEnabled: false,
-            inputDateFormat: '%Y-%m-%d',
-            inputEditDateFormat: '%Y-%m-%d',
-            inputDateParser: null,
-            inputBoxWidth: 0,
-            inputBoxHeight: 0,
-            inputStyle: {
-              display: 'none'
-            },
-            buttons: [
-              {
-                type: 'custom',
-                count: 10,
-                text: '10',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 10) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[9];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'custom',
-                count: 20,
-                text: '20',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 20) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[19];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'custom',
-                count: 40,
-                text: '40',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 40) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[39];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'all',
-                text: 'All'
-              }
-            ]
-          },
-
-          title: {
-            text: 'RTT/Latency Analytics'
-          },
-
-          legend: {
-            enabled: true,
-            align: 'center',
-            verticalAlign: 'bottom',
-            layout: 'horizontal',
-            itemStyle: {
-              fontSize: '12px'
-            },
-            symbolHeight: 12,
-            symbolWidth: 12,
-            symbolRadius: 2
-          },
-
-          xAxis: {
-            overscroll: '10px',
-            labels: {
-              enabled: true,
-              rotation: -45,
-              style: {
-                fontSize: '4px'
-              },
-              step: 1,
-              staggerLines: 1,
-              formatter: function() {
-                return new Date(this.value).toLocaleTimeString('en-US', {
-                  hour12: false,
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  fractionalSecondDigits: 3
-                });
-              }
-            },
-            tickInterval: null,
-            type: 'datetime',
-            minPadding: 0,
-            maxPadding: 0,
-            startOnTick: false,
-            endOnTick: false,
-            tickPositions: allTimestamps,
-            tickPositioner: function() {
-              return allTimestamps;
-            }
-          },
-
-          yAxis: {
-            min: 0,
-            title: {
-              text: 'RTT (ms)'
-            }
-          },
-
-          navigator: {
-            xAxis: {
-              labels: {
-                enabled: true,
-                rotation: -45,
-                style: {
-                  fontSize: '4px'
-                },
-                step: 1,
-                staggerLines: 1,
-                formatter: function() {
-                  return new Date(this.value).toLocaleTimeString('en-US', {
-                    hour12: false,
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    fractionalSecondDigits: 3
-                  });
-                }
-              },
-              tickInterval: null,
-              type: 'datetime',
-              minPadding: 0,
-              maxPadding: 0,
-              startOnTick: false,
-              endOnTick: false,
-              tickPositions: allTimestamps,
-              tickPositioner: function() {
-                return allTimestamps;
-              }
-            }
-          },
-
-          series: seriesData.map(series => ({
-            ...series,
-            tooltip: {
-              valueDecimals: 2
-            }
-          }))
-        });
-      } catch (error) {
-        console.error("Error creating RTT horizontal line chart:", error);
-      }
-    };
-
-    createRTTHorizontalLineChart();
-  }, []);
-
-  return (
-    <div className="bg-white p-4 rounded-lg shadow-lg">
-      <div ref={chartRef} style={{ height: "400px", width: "100%" }}></div>
-    </div>
-  );
-}
-
-// Packet Loss Percentage Horizontal Line Chart Component
-export function PacketLossHorizontalLineChart() {
-  const chartRef = useRef(null);
-
-  useEffect(() => {
-    const createPacketLossHorizontalLineChart = () => {
-      try {
-        const seriesData = [];
-        const limitedData = videoStats;
-
-        const statSeries = [];
-        for (let statIndex = 0; statIndex < 3; statIndex++) {
-          statSeries.push({
-            name: `Stat ${statIndex + 1}`,
-            data: [],
-            color: `hsl(${(statIndex * 120) % 360}, 70%, 50%)`
-          });
-        }
-
-        limitedData.forEach((entry, timestampIndex) => {
-          if (entry.stats && entry.stats.length > 0) {
-            entry.stats.forEach((stat, statIndex) => {
-              if (stat && statIndex < 3) {
-                // Use the actual stat timestamp for x-axis
-                const statTimestamp = new Date(stat.timestamp).getTime();
-                
-                const packetLossPercentage = stat.totalPackets > 0
-                  ? (stat.packetsLost / stat.totalPackets) * 100
-                  : 0;
-
-                statSeries[statIndex].data.push({
-                  x: statTimestamp,
-                  y: packetLossPercentage,
-                  custom: {
-                    timestamp: entry.timestamp,
-                    statIndex: statIndex + 1,
-                    packetLossPercentage: packetLossPercentage,
-                    packetsLost: stat.packetsLost,
-                    totalPackets: stat.totalPackets
-                  }
-                });
-              }
-            });
-          }
-        });
-
-        seriesData.push(...statSeries);
-
-        // Extract all unique timestamps for explicit tick positioning
-        const allTimestamps = [];
-        seriesData.forEach(series => {
-          series.data.forEach(point => {
-            if (!allTimestamps.includes(point.x)) {
-              allTimestamps.push(point.x);
-            }
-          });
-        });
-        allTimestamps.sort((a, b) => a - b);
-
-        const chart = Highcharts.stockChart(chartRef.current, {
-          rangeSelector: {
-            selected: 3,
-            inputEnabled: false,
-            inputDateFormat: '%Y-%m-%d',
-            inputEditDateFormat: '%Y-%m-%d',
-            inputDateParser: null,
-            inputBoxWidth: 0,
-            inputBoxHeight: 0,
-            inputStyle: {
-              display: 'none'
-            },
-            buttons: [
-              {
-                type: 'custom',
-                count: 10,
-                text: '10',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 10) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[9];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'custom',
-                count: 20,
-                text: '20',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 20) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[19];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'custom',
-                count: 40,
-                text: '40',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 40) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[39];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'all',
-                text: 'All'
-              }
-            ]
-          },
-
-          title: {
-            text: 'Packet Loss Percentage Analytics'
-          },
-
-          legend: {
-            enabled: true,
-            align: 'center',
-            verticalAlign: 'bottom',
-            layout: 'horizontal',
-            itemStyle: {
-              fontSize: '12px'
-            },
-            symbolHeight: 12,
-            symbolWidth: 12,
-            symbolRadius: 2
-          },
-
-          xAxis: {
-            overscroll: '10px',
-            labels: {
-              enabled: true,
-              rotation: -45,
-              style: {
-                fontSize: '4px'
-              },
-              step: 1,
-              staggerLines: 1,
-              formatter: function() {
-                return new Date(this.value).toLocaleTimeString('en-US', {
-                  hour12: false,
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  fractionalSecondDigits: 3
-                });
-              }
-            },
-            tickInterval: null,
-            type: 'datetime',
-            minPadding: 0,
-            maxPadding: 0,
-            startOnTick: false,
-            endOnTick: false,
-            tickPositions: allTimestamps,
-            tickPositioner: function() {
-              return allTimestamps;
-            }
-          },
-
-          yAxis: {
-            min: 0,
-            title: {
-              text: 'Packet Loss (%)'
-            }
-          },
-
-          navigator: {
-            xAxis: {
-              labels: {
-                enabled: true,
-                rotation: -45,
-                style: {
-                  fontSize: '4px'
-                },
-                step: 1,
-                staggerLines: 1,
-                formatter: function() {
-                  return new Date(this.value).toLocaleTimeString('en-US', {
-                    hour12: false,
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    fractionalSecondDigits: 3
-                  });
-                }
-              },
-              tickInterval: null,
-              type: 'datetime',
-              minPadding: 0,
-              maxPadding: 0,
-              startOnTick: false,
-              endOnTick: false,
-              tickPositions: allTimestamps,
-              tickPositioner: function() {
-                return allTimestamps;
-              }
-            }
-          },
-
-          series: seriesData.map(series => ({
-            ...series,
-            tooltip: {
-              valueDecimals: 2
-            }
-          }))
-        });
-      } catch (error) {
-        console.error("Error creating packet loss horizontal line chart:", error);
-      }
-    };
-
-    createPacketLossHorizontalLineChart();
-  }, []);
-
-  return (
-    <div className="bg-white p-4 rounded-lg shadow-lg">
-      <div ref={chartRef} style={{ height: "400px", width: "100%" }}></div>
-    </div>
-  );
-}
-
-// Bitrate Horizontal Line Chart Component
-export function BitrateHorizontalLineChart() {
-  const chartRef = useRef(null);
-
-  useEffect(() => {
-    const createBitrateHorizontalLineChart = () => {
-      try {
-        const seriesData = [];
-        const limitedData = videoStats;
-
-        const statSeries = [];
-        for (let statIndex = 0; statIndex < 3; statIndex++) {
-          statSeries.push({
-            name: `Stat ${statIndex + 1}`,
-            data: [],
-            color: `hsl(${(statIndex * 120) % 360}, 70%, 50%)`
-          });
-        }
-
-        limitedData.forEach((entry, timestampIndex) => {
-          if (entry.stats && entry.stats.length > 0) {
-            entry.stats.forEach((stat, statIndex) => {
-              if (stat && statIndex < 3) {
-                // Use the actual stat timestamp for x-axis
-                const statTimestamp = new Date(stat.timestamp).getTime();
-                
-                statSeries[statIndex].data.push({
-                  x: statTimestamp,
-                  y: stat.bitrate,
-                  custom: {
-                    timestamp: entry.timestamp,
-                    statIndex: statIndex + 1,
-                    bitrate: stat.bitrate,
-                    jitter: stat.jitter,
-                    rtt: stat.rtt
-                  }
-                });
-              }
-            });
-          }
-        });
-
-        seriesData.push(...statSeries);
-
-        // Extract all unique timestamps for explicit tick positioning
-        const allTimestamps = [];
-        seriesData.forEach(series => {
-          series.data.forEach(point => {
-            if (!allTimestamps.includes(point.x)) {
-              allTimestamps.push(point.x);
-            }
-          });
-        });
-        allTimestamps.sort((a, b) => a - b);
-
-        const chart = Highcharts.stockChart(chartRef.current, {
-          rangeSelector: {
-            selected: 3,
-            inputEnabled: false,
-            inputDateFormat: '%Y-%m-%d',
-            inputEditDateFormat: '%Y-%m-%d',
-            inputDateParser: null,
-            inputBoxWidth: 0,
-            inputBoxHeight: 0,
-            inputStyle: {
-              display: 'none'
-            },
-            buttons: [
-              {
-                type: 'custom',
-                count: 10,
-                text: '10',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 10) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[9];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'custom',
-                count: 20,
-                text: '20',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 20) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[19];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'custom',
-                count: 40,
-                text: '40',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 40) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[39];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'all',
-                text: 'All'
-              }
-            ]
-          },
-
-          title: {
-            text: 'Bitrate Analytics'
-          },
-
-          legend: {
-            enabled: true,
-            align: 'center',
-            verticalAlign: 'bottom',
-            layout: 'horizontal',
-            itemStyle: {
-              fontSize: '12px'
-            },
-            symbolHeight: 12,
-            symbolWidth: 12,
-            symbolRadius: 2
-          },
-
-          xAxis: {
-            overscroll: '10px',
-            labels: {
-              enabled: true,
-              rotation: -45,
-              style: {
-                fontSize: '4px'
-              },
-              step: 1,
-              staggerLines: 1,
-              formatter: function() {
-                return new Date(this.value).toLocaleTimeString('en-US', {
-                  hour12: false,
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  fractionalSecondDigits: 3
-                });
-              }
-            },
-            tickInterval: null,
-            type: 'datetime',
-            minPadding: 0,
-            maxPadding: 0,
-            startOnTick: false,
-            endOnTick: false,
-            tickPositions: allTimestamps,
-            tickPositioner: function() {
-              return allTimestamps;
-            }
-          },
-
-          yAxis: {
-            min: 0,
-            title: {
-              text: 'Bitrate (kbps)'
-            }
-          },
-
-          navigator: {
-            xAxis: {
-              labels: {
-                enabled: true,
-                rotation: -45,
-                style: {
-                  fontSize: '4px'
-                },
-                step: 1,
-                staggerLines: 1,
-                formatter: function() {
-                  return new Date(this.value).toLocaleTimeString('en-US', {
-                    hour12: false,
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    fractionalSecondDigits: 3
-                  });
-                }
-              },
-              tickInterval: null,
-              type: 'datetime',
-              minPadding: 0,
-              maxPadding: 0,
-              startOnTick: false,
-              endOnTick: false,
-              tickPositions: allTimestamps,
-              tickPositioner: function() {
-                return allTimestamps;
-              }
-            }
-          },
-
-          series: seriesData.map(series => ({
-            ...series,
-            tooltip: {
-              valueDecimals: 2
-            }
-          }))
-        });
-      } catch (error) {
-        console.error("Error creating bitrate horizontal line chart:", error);
-      }
-    };
-
-    createBitrateHorizontalLineChart();
-  }, []);
-
-  return (
-    <div className="bg-white p-4 rounded-lg shadow-lg">
-      <div ref={chartRef} style={{ height: "400px", width: "100%" }}></div>
-    </div>
-  );
-}
-
-// FPS Horizontal Line Chart Component
-export function FPSHorizontalLineChart() {
-  const chartRef = useRef(null);
-
-  useEffect(() => {
-    const createFPSHorizontalLineChart = () => {
-      try {
-        const seriesData = [];
-        const limitedData = videoStats;
-
-        const statSeries = [];
-        for (let statIndex = 0; statIndex < 3; statIndex++) {
-          statSeries.push({
-            name: `Stat ${statIndex + 1}`,
-            data: [],
-            color: `hsl(${(statIndex * 120) % 360}, 70%, 50%)`
-          });
-        }
-
-        limitedData.forEach((entry, timestampIndex) => {
-          if (entry.stats && entry.stats.length > 0) {
-            entry.stats.forEach((stat, statIndex) => {
-              if (stat && stat.size && statIndex < 3) {
-                // Use the actual stat timestamp for x-axis
-                const statTimestamp = new Date(stat.timestamp).getTime();
-                
-                statSeries[statIndex].data.push({
-                  x: statTimestamp,
-                  y: stat.size.framerate,
-                  custom: {
-                    timestamp: entry.timestamp,
-                    statIndex: statIndex + 1,
-                    framerate: stat.size.framerate,
-                    width: stat.size.width,
-                    height: stat.size.height
-                  }
-                });
-              }
-            });
-          }
-        });
-
-        seriesData.push(...statSeries);
-
-        // Extract all unique timestamps for explicit tick positioning
-        const allTimestamps = [];
-        seriesData.forEach(series => {
-          series.data.forEach(point => {
-            if (!allTimestamps.includes(point.x)) {
-              allTimestamps.push(point.x);
-            }
-          });
-        });
-        allTimestamps.sort((a, b) => a - b);
-
-        const chart = Highcharts.stockChart(chartRef.current, {
-          rangeSelector: {
-            selected: 3,
-            inputEnabled: false,
-            inputDateFormat: '%Y-%m-%d',
-            inputEditDateFormat: '%Y-%m-%d',
-            inputDateParser: null,
-            inputBoxWidth: 0,
-            inputBoxHeight: 0,
-            inputStyle: {
-              display: 'none'
-            },
-            buttons: [
-              {
-                type: 'custom',
-                count: 10,
-                text: '10',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 10) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[9];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'custom',
-                count: 20,
-                text: '20',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 20) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[19];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'custom',
-                count: 40,
-                text: '40',
-                events: {
-                  click: function() {
-                    if (allTimestamps && allTimestamps.length > 40) {
-                      const startTime = allTimestamps[0];
-                      const endTime = allTimestamps[39];
-                      chart.xAxis[0].setExtremes(startTime, endTime);
-                    }
-                  }
-                }
-              },
-              {
-                type: 'all',
-                text: 'All'
-              }
-            ]
-          },
-
-          title: {
-            text: 'FPS Analytics'
-          },
-
-          legend: {
-            enabled: true,
-            align: 'center',
-            verticalAlign: 'bottom',
-            layout: 'horizontal',
-            itemStyle: {
-              fontSize: '12px'
-            },
-            symbolHeight: 12,
-            symbolWidth: 12,
-            symbolRadius: 2
-          },
-
-          xAxis: {
-            overscroll: '10px',
-            labels: {
-              enabled: true,
-              rotation: -45,
-              style: {
-                fontSize: '4px'
-              },
-              step: 1,
-              staggerLines: 1,
-              formatter: function() {
-                return new Date(this.value).toLocaleTimeString('en-US', {
-                  hour12: false,
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit',
-                  fractionalSecondDigits: 3
-                });
-              }
-            },
-            tickInterval: null,
-            type: 'datetime',
-            minPadding: 0,
-            maxPadding: 0,
-            startOnTick: false,
-            endOnTick: false,
-            tickPositions: allTimestamps,
-            tickPositioner: function() {
-              return allTimestamps;
-            }
-          },
-
-          yAxis: {
-            min: 0,
-            title: {
-              text: 'FPS'
-            }
-          },
-
-          navigator: {
-            xAxis: {
-              labels: {
-                enabled: true,
-                rotation: -45,
-                style: {
-                  fontSize: '4px'
-                },
-                step: 1,
-                staggerLines: 1,
-                formatter: function() {
-                  return new Date(this.value).toLocaleTimeString('en-US', {
-                    hour12: false,
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    fractionalSecondDigits: 3
-                  });
-                }
-              },
-              tickInterval: null,
-              type: 'datetime',
-              minPadding: 0,
-              maxPadding: 0,
-              startOnTick: false,
-              endOnTick: false,
-              tickPositions: allTimestamps,
-              tickPositioner: function() {
-                return allTimestamps;
-              }
-            }
-          },
-
-          series: seriesData.map(series => ({
-            ...series,
-            tooltip: {
-              valueDecimals: 0
-            }
-          }))
-        });
-      } catch (error) {
-        console.error("Error creating FPS horizontal line chart:", error);
-      }
-    };
-
-    createFPSHorizontalLineChart();
-  }, []);
-
-  return (
-    <div className="bg-white p-4 rounded-lg shadow-lg">
-      <div ref={chartRef} style={{ height: "400px", width: "100%" }}></div>
-    </div>
-  );
-}
-
 
 export default function ChartComponent() {
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 px-20">
-        {/* Video Width Analytics */}
-        <div className="bg-white rounded-lg shadow-lg p-6 ">
-          <h2 className="text-2xl font-bold mb-4 text-center text-black">
-            Video Width Analytics
-          </h2>
-          <HorizontalLineChart />
-        </div>
-
-        {/* Jitter Analytics */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold mb-4 text-center text-black">
-            Jitter Analytics
-          </h2>
-          <JitterHorizontalLineChart />
-        </div>
-
-        {/* RTT/Latency Analytics */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold mb-4 text-center text-black">
-            RTT/Latency Analytics
-          </h2>
-          <RTTHorizontalLineChart />
-        </div>
-
-        {/* Packet Loss Analytics */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold mb-4 text-center text-black">
-            Packet Loss Percentage Analytics
-          </h2>
-          <PacketLossHorizontalLineChart />
-        </div>
-
-        {/* Bitrate Analytics */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold mb-4 text-center text-black">
-            Bitrate Analytics
-          </h2>
-          <BitrateHorizontalLineChart />
-        </div>
-
-        {/* FPS Analytics */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-2xl font-bold mb-4 text-center text-black">
-            FPS Analytics
-          </h2>
-          <FPSHorizontalLineChart />
-        </div>
+    <div className="min-h-screen bg-black text-white selection:bg-white selection:text-black antialiased font-sans">
+      {/* Subtle Background Glows */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-white/5 blur-[150px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-white/[0.02] blur-[120px] rounded-full"></div>
       </div>
-    </div>
 
+      <main className="relative z-10 max-w-7xl mx-auto px-8 py-20">
+        <GridSection title="Primary Diagnostics" dataset={videoStats1} />
+        <GridSection title="Historical Reference" dataset={videoStats2} />
+      </main>
+    </div>
   );
 }

@@ -51,10 +51,4 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - `Data2.js`: Secondary/Historical data source.
 - `src/app/page.js`: Main entry point for the dashboard view.
 
-## 🧹 Optimization
-
-Unused dependencies like `chart.js` and `react-chartjs-2` have been removed to keep the bundle size small and the project focused on the Highcharts implementation.
-
----
-
 *Handcrafted for precise video data visualization.*
