@@ -1,0 +1,15 @@
+To update Data.js with the new data from Untitled-1:
+
+1. Copy ALL content from Untitled-1 (the entire JSON structure)
+2. Save it as: new-data-raw.json
+3. Make sure it's valid JSON (should be: {"videoStats": [...]})
+4. Run: node update-data.js
+
+The script will automatically:
+- Parse the JSON
+- Add parentTimestamp (rounded to 5-second intervals)  
+- Add missing fields (freezeCount, pauseCount, totalFreezesDuration)
+- Transform to match Data.js format
+- Update Data.js
+
+Alternatively, if you paste the data here, I can create the file for you.

@@ -1,0 +1,4 @@
+[
+  {"bitrate": 0, "codec": null, "jitter": 1, "size": {"width": 640, "height": 480, "framerate": 24}, "timestamp": "2025-11-18T11:08:59.354Z", "network": "WIFI", "packetsLost": 0, "totalPackets": 193, "rtt": 14, "freezeCount": 0, "pauseCount": 0, "totalFreezesDuration": 0, "_id": "691c53d4601f5518dde1ccf3"},
+  {"bitrate": 2075.2493871727015, "codec": "video/VP8", "jitter": 4, "size": {"width": 640, "height": 480, "framerate": 23}, "timestamp": "2025-11-18T11:09:04.355Z", "network": "WIFI", "packetsLost": 13, "totalPackets": 233, "rtt": 16, "freezeCount": 1, "pauseCount": 0, "totalFreezesDuration": 0.329, "_id": "691c53d4601f5518dde1ccf4"}
+]
