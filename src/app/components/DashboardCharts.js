@@ -28,37 +28,39 @@ const darkTheme = {
         }
     },
     xAxis: {
-        gridLineColor: '#1a1a1a',
+        gridLineColor: 'rgba(255, 255, 255, 0.05)',
+        gridLineDashStyle: 'Dash',
         labels: {
             style: {
-                color: '#666666',
+                color: '#888888',
                 fontSize: '10px'
             }
         },
-        lineColor: '#1a1a1a',
-        minorGridLineColor: '#111111',
-        tickColor: '#1a1a1a',
+        lineColor: 'rgba(255, 255, 255, 0.1)',
+        minorGridLineColor: 'rgba(255, 255, 255, 0.02)',
+        tickColor: 'rgba(255, 255, 255, 0.1)',
         title: {
             style: {
-                color: '#888888'
+                color: '#aaaaaa'
             }
         }
     },
     yAxis: {
-        gridLineColor: '#1a1a1a',
+        gridLineColor: 'rgba(255, 255, 255, 0.05)',
+        gridLineDashStyle: 'Dash',
         labels: {
             style: {
-                color: '#666666',
+                color: '#888888',
                 fontSize: '10px'
             }
         },
-        lineColor: '#1a1a1a',
-        minorGridLineColor: '#111111',
-        tickColor: '#1a1a1a',
+        lineColor: 'rgba(255, 255, 255, 0.1)',
+        minorGridLineColor: 'rgba(255, 255, 255, 0.02)',
+        tickColor: 'rgba(255, 255, 255, 0.1)',
         tickWidth: 1,
         title: {
             style: {
-                color: '#888888',
+                color: '#aaaaaa',
                 fontSize: '10px'
             }
         }
@@ -84,7 +86,7 @@ const darkTheme = {
 
 Highcharts.setOptions(darkTheme);
 
-const MONO_COLORS = ['#ffffff', '#a1a1a1', '#525252'];
+const MONO_COLORS = ['#38bdf8', '#a78bfa', '#34d399'];
 
 const processSeries = (data, valueKey) => {
     const statSeries = MONO_COLORS.map((color, i) => ({
@@ -243,11 +245,12 @@ function KPICard({ label, value, unit, delay = 0 }) {
 
     return (
         <div
-            className={`chart-card glass rounded-xl p-6 border border-white/5 transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+            className={`chart-card relative group bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-xl rounded-2xl p-6 border border-white/5 transition-all duration-500 hover:-translate-y-1 hover:border-white/20 hover:bg-white/[0.04] hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] overflow-hidden ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
         >
-            <p className="text-[10px] font-bold text-white/40 tracking-[0.2em] uppercase mb-3">{label}</p>
-            <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black tracking-tight text-white">{displayVal}</span>
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <p className="relative z-10 text-[10px] font-bold text-white/40 tracking-[0.2em] uppercase mb-3 group-hover:text-white/60 transition-colors">{label}</p>
+            <div className="relative z-10 flex items-baseline gap-2">
+                <span className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white to-white/70">{displayVal}</span>
                 {unit && <span className="text-sm text-white/30 font-medium">{unit}</span>}
             </div>
         </div>
@@ -319,8 +322,8 @@ function StackedAreaChart({ dataset, title }) {
                 }
             },
             tooltip: {
-                backgroundColor: 'rgba(10, 10, 10, 0.9)',
-                borderColor: '#1a1a1a',
+                backgroundColor: 'rgba(10, 10, 10, 0.7)',
+                borderColor: 'rgba(255, 255, 255, 0.15)',
                 style: { color: '#ffffff' },
                 shared: true,
                 useHTML: true,
@@ -353,7 +356,7 @@ function LimitationDonut({ dataset, title }) {
         if (!chartRef.current) return;
 
         const data = computeLimitations(dataset);
-        const donutColors = ['#ffffff', '#a1a1a1', '#525252', '#333333'];
+        const donutColors = ['#38bdf8', '#a78bfa', '#34d399', '#f472b6'];
 
         const chart = Highcharts.chart(chartRef.current, {
             chart: { type: 'pie' },
@@ -377,8 +380,8 @@ function LimitationDonut({ dataset, title }) {
                 }
             },
             tooltip: {
-                backgroundColor: 'rgba(10, 10, 10, 0.9)',
-                borderColor: '#1a1a1a',
+                backgroundColor: 'rgba(10, 10, 10, 0.7)',
+                borderColor: 'rgba(255, 255, 255, 0.15)',
                 style: { color: '#ffffff' },
                 pointFormat: '<b>{point.percentage:.1f}%</b> ({point.y} samples)'
             },
@@ -430,8 +433,8 @@ function StreamComparisonChart({ dataset, title }) {
                 }
             ],
             tooltip: {
-                backgroundColor: 'rgba(10, 10, 10, 0.9)',
-                borderColor: '#1a1a1a',
+                backgroundColor: 'rgba(10, 10, 10, 0.7)',
+                borderColor: 'rgba(255, 255, 255, 0.15)',
                 style: { color: '#ffffff' },
                 shared: true,
                 useHTML: true,
@@ -447,19 +450,19 @@ function StreamComparisonChart({ dataset, title }) {
                 {
                     name: 'Avg Bitrate',
                     data: averages.map((a) => Math.round(a.avgBitrate)),
-                    color: '#ffffff',
+                    color: '#38bdf8',
                     yAxis: 0,
                 },
                 {
                     name: 'Avg FPS',
                     data: averages.map((a) => parseFloat(a.avgFPS.toFixed(1))),
-                    color: '#a1a1a1',
+                    color: '#a78bfa',
                     yAxis: 1,
                 },
                 {
                     name: 'Avg Jitter',
                     data: averages.map((a) => parseFloat(a.avgJitter.toFixed(2))),
-                    color: '#525252',
+                    color: '#34d399',
                     yAxis: 1,
                 },
             ]
@@ -525,8 +528,8 @@ function BaseChart({ title, valueKey, yAxisLabel, dataset, formatter = (v) => v 
                 }
             },
             tooltip: {
-                backgroundColor: 'rgba(10, 10, 10, 0.9)',
-                borderColor: '#1a1a1a',
+                backgroundColor: 'rgba(10, 10, 10, 0.7)',
+                borderColor: 'rgba(255, 255, 255, 0.15)',
                 style: { color: '#ffffff' },
                 shared: true,
                 useHTML: true,
